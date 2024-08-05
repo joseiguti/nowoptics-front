@@ -7,7 +7,6 @@
       {{ title }}
     </v-card-title>
     <v-divider></v-divider>
-
     <v-list class="messages-container">
       <v-list-item v-for="message in messages" :key="message.id">
         <v-list-item-content
@@ -24,7 +23,6 @@
       </v-list-item>
     </v-list>
     <v-divider></v-divider>
-
     <v-row align="center" class="message-input">
       <v-col class="d-flex align-center">
         <v-text-field
@@ -34,6 +32,7 @@
             dense
             hide-details
             class="flex-grow-1"
+            @keyup.enter="sendMessage"
         ></v-text-field>
         <v-btn color="primary" @click="sendMessage" icon>
           <v-icon>mdi-send</v-icon>
