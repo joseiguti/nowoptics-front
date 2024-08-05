@@ -22,12 +22,16 @@
     text-align: right;
     margin-left: auto;
     color: white;
+    display: flex;
+    align-items: center;
 }
 
 .received .received-card {
     justify-content: flex-start;
     text-align: left;
     margin-right: auto;
+    display: flex;
+    align-items: center;
 }
 
 .bg-blue-lighten-3 {
@@ -52,4 +56,31 @@
 
 .v-btn {
     margin-left: 10px;
+}
+
+.edit-text-field {
+    width: calc(100% - 40px); /* Ajusta el ancho del campo de edición en línea */
+    margin-right: 8px; /* Asegura que haya espacio para el botón de confirmación */
+}
+
+.v-list-item-content {
+    display: flex;
+    align-items: center;
+}
+
+.v-list-item-content .v-btn,
+.action-icon {
+    cursor: pointer;
+    color: inherit; /* Mantiene el color del texto del icono */
+    margin-left: 8px; /* Espacio entre botones de acción */
+}
+
+.message-actions {
+    display: flex;
+    align-items: center;
+}
+
+.action-icon {
+    font-size: 16px;
+    padding: 0 4px; /* Elimina el relleno que da apariencia de botón */
 }
