@@ -1,33 +1,41 @@
-.video-container {
-    position: relative;
-    width: 150px;
-    height: auto;
-    background-color: #ffffff;
-}
-
-.remote-video {
-    width: 100%;
-    height: 115px;
-    background-color: #000;
-}
-
-.local-video {
-    position: absolute;
-    bottom: 10px;
-    right: 10px;
-    width: 50px;
-    height: 40px;
-    border: 2px solid white;
-    border-radius: 8px;
-    background-color: #333;
-}
-
 .chat-container {
     flex-grow: 1;
     display: flex;
     flex-direction: column;
     overflow: hidden;
     height: 100%;
+}
+
+.v-card-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px;
+}
+
+.video-container {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+}
+
+.remote-video {
+    width: 110px;
+    height: 80px;
+    background-color: #000;
+    border-radius: 8px;
+}
+
+.local-video {
+    position: absolute;
+    bottom: 5px;
+    right: 5px;
+    width: 50px;
+    height: 40px;
+    border: 2px solid white;
+    border-radius: 8px;
+    background-color: #333;
 }
 
 .messages-container {
@@ -83,8 +91,8 @@
 }
 
 .edit-text-field {
-    width: calc(100% - 40px); /* Ajusta el ancho del campo de edición en línea */
-    margin-right: 8px; /* Asegura que haya espacio para el botón de confirmación */
+    width: calc(100% - 40px);
+    margin-right: 8px;
 }
 
 .v-list-item-content {
@@ -95,8 +103,8 @@
 .v-list-item-content .v-btn,
 .action-icon {
     cursor: pointer;
-    color: inherit; /* Mantiene el color del texto del icono */
-    margin-left: 8px; /* Espacio entre botones de acción */
+    color: inherit;
+    margin-left: 8px;
 }
 
 .message-actions {
@@ -106,5 +114,5 @@
 
 .action-icon {
     font-size: 16px;
-    padding: 0 4px; /* Elimina el relleno que da apariencia de botón */
+    padding: 0 4px;
 }

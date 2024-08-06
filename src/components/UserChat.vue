@@ -5,13 +5,11 @@
         <v-icon>mdi-video</v-icon>
       </v-btn>
       {{ title }}
-    </v-card-title>
-
       <div class="video-container">
         <video ref="remoteVideo" autoplay playsinline class="remote-video"></video>
         <video ref="localVideo" autoplay playsinline class="local-video"></video>
       </div>
-
+    </v-card-title>
     <v-divider></v-divider>
     <v-list ref="messagesContainer" class="messages-container">
       <v-list-item v-for="(message) in messages" :key="message.id">
@@ -83,8 +81,6 @@
         </v-card-actions>
       </v-card>
     </v-dialog>
-
-    <!-- Elementos de video para la llamada -->
   </v-card>
 </template>
 
