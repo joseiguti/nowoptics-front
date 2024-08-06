@@ -6,9 +6,10 @@
             title="User One"
             :messages="messages"
             userKey="user_one"
-            :addMessage="addMessage"
-            :updateMessage="updateMessage"
-            :deleteMessage="deleteMessage"
+            :addMessage="handleAddMessage"
+            :updateMessage="handleUpdateMessage"
+            :deleteMessage="handleDeleteMessage"
+            :loadMessages="loadMessages"
         />
       </v-col>
 
@@ -17,9 +18,10 @@
             title="User Two"
             :messages="messages"
             userKey="user_two"
-            :addMessage="addMessage"
-            :updateMessage="updateMessage"
-            :deleteMessage="deleteMessage"
+            :addMessage="handleAddMessage"
+            :updateMessage="handleUpdateMessage"
+            :deleteMessage="handleDeleteMessage"
+            :loadMessages="loadMessages"
         />
       </v-col>
     </v-row>
@@ -27,8 +29,8 @@
 </template>
 
 <script>
-import {ref, onMounted} from 'vue'
-import axios from 'axios'
+import { ref, onMounted } from 'vue'
+import { loadMessages as fetchMessages, addMessage, updateMessage, deleteMessage } from '../utils/chatUtils'
 import UserChat from './UserChat.vue'
 import '../styles/ChatDashboardStyles.css'
 
@@ -40,50 +42,34 @@ export default {
     const messages = ref([])
 
     const loadMessages = async () => {
-      try {
-        const response = await axios.get('http://localhost:3000/messages')
-        messages.value = response.data
-      } catch (error) {
-        console.error('Error loading messages:', error)
+      const loadedMessages = await fetchMessages()
+      messages.value = loadedMessages
+    }
+
+    const handleAddMessage = async (user, text) => {
+      const newMessage = await addMessage(user, text)
+      if (newMessage) {
+        messages.value.push(newMessage)
       }
     }
 
-    const addMessage = async (user, text) => {
-      try {
-        const response = await axios.post('http://localhost:3000/messages', {
-          sender_id: user,
-          receiver_id: user === 'user_one' ? 'user_two' : 'user_one',
-          content: text,
-        })
-        messages.value.push(response.data.data)
-      } catch (error) {
-        console.error('Error adding message:', error)
-      }
-    }
-
-    const updateMessage = async (id, text) => {
-      try {
-        await axios.put(`http://localhost:3000/messages/${id}`, {
-          content: text,
-        })
+    const handleUpdateMessage = async (id, text) => {
+      const success = await updateMessage(id, text)
+      if (success) {
         const index = messages.value.findIndex(m => m.id === id)
         if (index !== -1) {
-          messages.value[index].text = text
+          messages.value[index].content = text
         }
-      } catch (error) {
-        console.error('Error updating message:', error)
       }
     }
 
-    const deleteMessage = async (id) => {
-      try {
-        await axios.delete(`http://localhost:3000/messages/${id}`)
+    const handleDeleteMessage = async (id) => {
+      const success = await deleteMessage(id)
+      if (success) {
         const index = messages.value.findIndex(m => m.id === id)
         if (index !== -1) {
           messages.value.splice(index, 1)
         }
-      } catch (error) {
-        console.error('Error deleting message:', error)
       }
     }
 
@@ -91,9 +77,10 @@ export default {
 
     return {
       messages,
-      addMessage,
-      updateMessage,
-      deleteMessage,
+      loadMessages,
+      handleAddMessage,
+      handleUpdateMessage,
+      handleDeleteMessage,
     }
   },
 }

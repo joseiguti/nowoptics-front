@@ -21,9 +21,9 @@
                   dense
                   hide-details
                   class="edit-text-field"
-                  @keyup.enter="saveEdit(message)"
+                  @keyup.enter="() => saveEdit(message)"
               ></v-text-field>
-              <v-icon small @click="saveEdit(message)" class="action-icon">mdi-check</v-icon>
+              <v-icon small @click="() => saveEdit(message)" class="action-icon">mdi-check</v-icon>
             </template>
             <template v-else>
               <v-list-item-title>{{ message.content }}</v-list-item-title>
@@ -68,7 +68,8 @@
 </template>
 
 <script>
-import { ref, watch, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
+import { handleSendMessage, handleSaveEdit, handleConfirmDelete } from '../utils/chatUtils'
 import '../styles/UserChatStyles.css'
 
 export default {
@@ -97,6 +98,10 @@ export default {
       type: Function,
       required: true,
     },
+    loadMessages: {
+      type: Function,
+      required: true,
+    },
   },
   setup(props) {
     const newMessage = ref('')
@@ -104,25 +109,37 @@ export default {
     const editText = ref('')
     const dialog = ref(false)
     const messageToDelete = ref(null)
+    const ws = ref(null)
 
     onMounted(() => {
       console.log(`Initial messages for ${props.userKey}:`, props.messages)
+
+      ws.value = new WebSocket('ws://localhost:3000')
+
+      ws.value.onopen = () => {
+        ws.value.send(JSON.stringify({type: 'register', userKey: props.userKey}))
+      }
+
+      // Manejar mensajes entrantes desde el servidor WebSocket
+      ws.value.onmessage = (event) => {
+        const message = JSON.parse(event.data)
+        if (message.type === 'new_message' || message.type === 'update_message' || message.type === 'delete_message') {
+          props.loadMessages()
+        }
+      }
+
+      ws.value.onerror = (error) => {
+        console.error('WebSocket error:', error)
+      }
+
+      ws.value.onclose = () => {
+        console.log('WebSocket connection closed')
+      }
     })
 
-    // Observa los cambios en los mensajes y registra cuando se actualizan
-    watch(
-        () => props.messages,
-        (newMessages) => {
-          console.log(`Updated messages for ${props.userKey}:`, newMessages)
-        },
-        { deep: true }
-    )
-
     const sendMessage = () => {
-      if (newMessage.value.trim() !== '') {
-        props.addMessage(props.userKey, newMessage.value)
-        newMessage.value = ''
-      }
+      handleSendMessage(props.userKey, newMessage.value, props.addMessage, ws.value)
+      newMessage.value = ''
     }
 
     const startEditing = (message) => {
@@ -131,11 +148,9 @@ export default {
     }
 
     const saveEdit = (message) => {
-      if (editText.value.trim() !== '') {
-        props.updateMessage(message.id, editText.value)
-        editingMessage.value = null
-        editText.value = ''
-      }
+      handleSaveEdit(editText.value, message, props.updateMessage, ws.value)
+      editingMessage.value = null
+      editText.value = ''
     }
 
     const confirmDelete = (message) => {
@@ -144,7 +159,7 @@ export default {
     }
 
     const deleteMessage = () => {
-      props.deleteMessage(messageToDelete.value.id)
+      handleConfirmDelete(messageToDelete.value, props.deleteMessage, ws.value)
       dialog.value = false
       messageToDelete.value = null
     }
