@@ -9,9 +9,9 @@
     <v-divider></v-divider>
     <v-list class="messages-container">
       <v-list-item v-for="(message) in messages" :key="message.id">
-        <v-list-item-content :class="message.user === userKey ? 'sent' : 'received'">
+        <v-list-item-content :class="message.sender_id === userKey ? 'sent' : 'received'">
           <v-card
-              :class="message.user === userKey ? 'bg-royal-blue sent-card' : 'bg-grey-lighten-3 received-card'"
+              :class="message.sender_id === userKey ? 'bg-royal-blue sent-card' : 'bg-grey-lighten-3 received-card'"
               class="pa-2"
               :style="{ maxWidth: '75%', borderRadius: '12px', marginBottom: '10px' }"
           >
@@ -26,8 +26,8 @@
               <v-icon small @click="saveEdit(message)" class="action-icon">mdi-check</v-icon>
             </template>
             <template v-else>
-              <v-list-item-title>{{ message.text }}</v-list-item-title>
-              <div v-if="message.user === userKey" class="message-actions">
+              <v-list-item-title>{{ message.content }}</v-list-item-title>
+              <div v-if="message.sender_id === userKey" class="message-actions">
                 <v-icon small @click="startEditing(message)" class="action-icon">mdi-pencil</v-icon>
                 <v-icon small @click="confirmDelete(message)" class="action-icon">mdi-delete</v-icon>
               </div>
@@ -60,7 +60,7 @@
         <v-card-actions>
           <v-spacer></v-spacer>
           <v-btn color="blue darken-1" text @click="dialog = false">Cancel</v-btn>
-          <v-btn color="red darken-1" text @click="deleteMessage">Delete</v-btn>
+          <v-btn color="red darken-1" text @click="deleteMessage" class="action-icon">Delete</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
@@ -68,7 +68,7 @@
 </template>
 
 <script>
-import { ref } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 import '../styles/UserChatStyles.css'
 
 export default {
@@ -89,6 +89,14 @@ export default {
       type: Function,
       required: true,
     },
+    updateMessage: {
+      type: Function,
+      required: true,
+    },
+    deleteMessage: {
+      type: Function,
+      required: true,
+    },
   },
   setup(props) {
     const newMessage = ref('')
@@ -96,6 +104,19 @@ export default {
     const editText = ref('')
     const dialog = ref(false)
     const messageToDelete = ref(null)
+
+    onMounted(() => {
+      console.log(`Initial messages for ${props.userKey}:`, props.messages)
+    })
+
+    // Observa los cambios en los mensajes y registra cuando se actualizan
+    watch(
+        () => props.messages,
+        (newMessages) => {
+          console.log(`Updated messages for ${props.userKey}:`, newMessages)
+        },
+        { deep: true }
+    )
 
     const sendMessage = () => {
       if (newMessage.value.trim() !== '') {
@@ -106,17 +127,15 @@ export default {
 
     const startEditing = (message) => {
       editingMessage.value = message.id
-      editText.value = message.text
+      editText.value = message.content
     }
 
     const saveEdit = (message) => {
-      const index = props.messages.findIndex(m => m.id === message.id)
-      if (index !== -1) {
-        // eslint-disable-next-line vue/no-mutating-props
-        props.messages[index].text = editText.value
+      if (editText.value.trim() !== '') {
+        props.updateMessage(message.id, editText.value)
+        editingMessage.value = null
+        editText.value = ''
       }
-      editingMessage.value = null
-      editText.value = ''
     }
 
     const confirmDelete = (message) => {
@@ -125,11 +144,7 @@ export default {
     }
 
     const deleteMessage = () => {
-      const index = props.messages.findIndex(m => m.id === messageToDelete.value.id)
-      if (index !== -1) {
-        // eslint-disable-next-line vue/no-mutating-props
-        props.messages.splice(index, 1)
-      }
+      props.deleteMessage(messageToDelete.value.id)
       dialog.value = false
       messageToDelete.value = null
     }
@@ -143,6 +158,7 @@ export default {
       saveEdit,
       dialog,
       confirmDelete,
+      // eslint-disable-next-line vue/no-dupe-keys
       deleteMessage,
     }
   },
