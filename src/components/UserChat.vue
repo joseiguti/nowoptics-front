@@ -1,10 +1,12 @@
 <template>
   <v-card class="chat-container d-flex flex-column fill-height">
-    <v-card-title class="d-flex align-center">
-      <v-btn icon class="ma-3" @click="startVideoCall">
-        <v-icon>mdi-video</v-icon>
-      </v-btn>
-      {{ title }}
+    <v-card-title class="d-flex align-center justify-space-between">
+      <div class="title-container">
+        <v-btn icon class="ma-3" @click="startVideoCall">
+          <v-icon>mdi-video</v-icon>
+        </v-btn>
+        <span>{{ title }}</span>
+      </div>
       <div class="video-container">
         <video ref="remoteVideo" autoplay playsinline class="remote-video"></video>
         <video ref="localVideo" autoplay playsinline class="local-video"></video>
@@ -13,7 +15,10 @@
     <v-divider></v-divider>
     <v-list ref="messagesContainer" class="messages-container">
       <v-list-item v-for="(message) in messages" :key="message.id">
-        <v-list-item-content :class="message.sender_id === userKey ? 'sent' : 'received'">
+        <v-list-item-content
+            v-if="message && message.content"
+            :class="message.sender_id === userKey ? 'sent' : 'received'"
+        >
           <v-card
               :class="message.sender_id === userKey ? 'bg-royal-blue sent-card' : 'bg-grey-lighten-3 received-card'"
               class="pa-2"
@@ -68,12 +73,10 @@
         </v-card-actions>
       </v-card>
     </v-dialog>
-
-    <!-- Modal de llamada entrante -->
     <v-dialog v-model="incomingCall" max-width="290">
       <v-card>
         <v-card-title class="headline">Incoming Call</v-card-title>
-        <v-card-text>Do you want to accept the call?</v-card-text>
+        <v-card-text>{{ caller }} is calling. Do you want to accept the call?</v-card-text>
         <v-card-actions>
           <v-spacer></v-spacer>
           <v-btn color="green darken-1" text @click="acceptCall">Accept</v-btn>
@@ -85,17 +88,6 @@
 </template>
 
 <script>
-async function testMediaAccess() {
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true })
-    console.log('Media access granted:', stream)
-  } catch (error) {
-    console.error('Error accessing media devices:', error)
-  }
-}
-
-testMediaAccess()
-
 import { ref, onMounted } from 'vue'
 import { handleSendMessage, handleSaveEdit, handleConfirmDelete } from '../utils/chatUtils'
 import '../styles/UserChatStyles.css'
@@ -139,41 +131,44 @@ export default {
     const messageToDelete = ref(null)
     const ws = ref(null)
 
-    // Variables para el video y la llamada
     const localVideo = ref(null)
     const remoteVideo = ref(null)
     const localStream = ref(null)
     const peerConnection = ref(null)
     const incomingCall = ref(false)
+    const caller = ref('')
 
-    // Servidores STUN/TURN
     const servers = {
       iceServers: [
-        { urls: 'stun:stun.l.google.com:19302' } // Servidor STUN público
+        {urls: 'stun:stun.l.google.com:19302'}
       ]
     }
 
-    onMounted(() => {
+    onMounted(async () => {
       console.log(`Initial messages for ${props.userKey}:`, props.messages)
+
+      try {
+        localStream.value = await navigator.mediaDevices.getUserMedia({video: true, audio: true})
+        localVideo.value.srcObject = localStream.value
+        setupPeerConnection()
+      } catch (error) {
+        console.error('Error accessing media devices:', error)
+      }
 
       ws.value = new WebSocket('ws://localhost:3000')
 
       ws.value.onopen = () => {
-        ws.value.send(JSON.stringify({ type: 'register', userKey: props.userKey }))
+        ws.value.send(JSON.stringify({type: 'register', userKey: props.userKey}))
       }
 
       ws.value.onmessage = async (event) => {
         const message = JSON.parse(event.data)
 
-        if (message.type === 'offer' && peerConnection.value) {
-          // Mostrar diálogo de llamada entrante
+        if (message.type === 'offer') {
           incomingCall.value = true
+          caller.value = message.userKey === 'user_one' ? 'User One' : 'User Two'
 
-          // Establecer la descripción remota con la oferta recibida
           await peerConnection.value.setRemoteDescription(new RTCSessionDescription(message.data))
-
-          // Guardar la oferta recibida
-          peerConnection.value.remoteOffer = new RTCSessionDescription(message.data)
         }
 
         if (message.type === 'answer' && peerConnection.value) {
@@ -194,36 +189,33 @@ export default {
       }
     })
 
+    const setupPeerConnection = () => {
+      peerConnection.value = new RTCPeerConnection(servers)
+
+      localStream.value.getTracks().forEach(track => peerConnection.value.addTrack(track, localStream.value))
+
+      peerConnection.value.ontrack = (event) => {
+        if (remoteVideo.value) {
+          remoteVideo.value.srcObject = event.streams[0]
+        }
+      }
+
+      peerConnection.value.onicecandidate = (event) => {
+        if (event.candidate) {
+          ws.value.send(JSON.stringify({
+            type: 'candidate',
+            data: event.candidate,
+            target: props.userKey === 'user_one' ? 'user_two' : 'user_one',
+            userKey: props.userKey
+          }))
+        }
+      }
+    }
+
     const startVideoCall = async () => {
       try {
-        localStream.value = await navigator.mediaDevices.getUserMedia({ video: true, audio: true })
-        localVideo.value.srcObject = localStream.value
-
-        peerConnection.value = new RTCPeerConnection(servers)
-
-        localStream.value.getTracks().forEach(track => peerConnection.value.addTrack(track, localStream.value))
-
-        peerConnection.value.ontrack = (event) => {
-          if (remoteVideo.value) {
-            remoteVideo.value.srcObject = event.streams[0]
-          }
-        }
-
-        peerConnection.value.onicecandidate = (event) => {
-          if (event.candidate) {
-            ws.value.send(JSON.stringify({
-              type: 'candidate',
-              data: event.candidate,
-              target: props.userKey === 'user_one' ? 'user_two' : 'user_one',
-              userKey: props.userKey
-            }))
-          }
-        }
-
         const offer = await peerConnection.value.createOffer()
         await peerConnection.value.setLocalDescription(offer)
-
-        // Enviar la oferta al usuario destino a través de WebSocket
         ws.value.send(JSON.stringify({
           type: 'offer',
           data: offer,
@@ -238,14 +230,10 @@ export default {
     const acceptCall = async () => {
       incomingCall.value = false
 
-      if (peerConnection.value.remoteOffer) {
-        // Establecer la descripción remota con la oferta recibida
-        await peerConnection.value.setRemoteDescription(peerConnection.value.remoteOffer)
-
+      if (peerConnection.value.remoteDescription) {
         const answer = await peerConnection.value.createAnswer()
         await peerConnection.value.setLocalDescription(answer)
 
-        // Enviar la respuesta al iniciador de la llamada
         ws.value.send(JSON.stringify({
           type: 'answer',
           data: answer,
@@ -254,6 +242,7 @@ export default {
         }))
       }
     }
+
     const rejectCall = () => {
       incomingCall.value = false
       if (peerConnection.value) {
@@ -305,8 +294,9 @@ export default {
       remoteVideo,
       acceptCall,
       rejectCall,
-      incomingCall
+      incomingCall,
+      caller
     }
-  },
+  }
 }
 </script>
