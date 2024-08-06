@@ -51,18 +51,24 @@ export async function deleteMessage(id) {
 export function handleSendMessage(userKey, newMessage, addMessage, ws) {
     if (newMessage.trim() !== '') {
         addMessage(userKey, newMessage)
-        ws.send(JSON.stringify({ type: 'new_message' }))
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'new_message' }))
+        }
     }
 }
 
 export function handleSaveEdit(editText, message, updateMessage, ws) {
-    if (editText.trim() !== '') {
+    if (editText.trim() !== '' && ws) {
         updateMessage(message.id, editText)
-        ws.send(JSON.stringify({ type: 'update_message' }))
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'update_message' }))
+        }
     }
 }
 
 export function handleConfirmDelete(message, deleteMessage, ws) {
     deleteMessage(message.id)
-    ws.send(JSON.stringify({ type: 'delete_message' }))
+    if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'delete_message' }))
+    }
 }
