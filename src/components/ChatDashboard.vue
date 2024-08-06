@@ -12,7 +12,6 @@
             :loadMessages="loadMessages"
         />
       </v-col>
-
       <v-col cols="12" md="6" class="d-flex fill-height">
         <UserChat
             title="User Two"
@@ -27,7 +26,6 @@
     </v-row>
   </v-container>
 </template>
-
 <script>
 import { ref, onMounted } from 'vue'
 import { loadMessages as fetchMessages, addMessage, updateMessage, deleteMessage } from '../utils/chatUtils'
@@ -40,19 +38,16 @@ export default {
   },
   setup() {
     const messages = ref([])
-
     const loadMessages = async () => {
       const loadedMessages = await fetchMessages()
       messages.value = loadedMessages
     }
-
     const handleAddMessage = async (user, text) => {
       const newMessage = await addMessage(user, text)
       if (newMessage) {
         messages.value.push(newMessage)
       }
     }
-
     const handleUpdateMessage = async (id, text) => {
       const success = await updateMessage(id, text)
       if (success) {
@@ -62,7 +57,6 @@ export default {
         }
       }
     }
-
     const handleDeleteMessage = async (id) => {
       const success = await deleteMessage(id)
       if (success) {
@@ -72,7 +66,6 @@ export default {
         }
       }
     }
-
     onMounted(loadMessages)
 
     return {

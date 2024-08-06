@@ -90,6 +90,7 @@
 <script>
 import { ref, onMounted } from 'vue'
 import { handleSendMessage, handleSaveEdit, handleConfirmDelete } from '../utils/chatUtils'
+import { config } from '../config/config'
 import '../styles/UserChatStyles.css'
 
 export default {
@@ -138,12 +139,6 @@ export default {
     const incomingCall = ref(false)
     const caller = ref('')
 
-    const servers = {
-      iceServers: [
-        {urls: 'stun:stun.l.google.com:19302'}
-      ]
-    }
-
     onMounted(async () => {
       console.log(`Initial messages for ${props.userKey}:`, props.messages)
 
@@ -155,7 +150,7 @@ export default {
         console.error('Error accessing media devices:', error)
       }
 
-      ws.value = new WebSocket('ws://localhost:3000')
+      ws.value = new WebSocket(config.ws)
 
       ws.value.onopen = () => {
         ws.value.send(JSON.stringify({type: 'register', userKey: props.userKey}))
@@ -166,7 +161,7 @@ export default {
 
         if (message.type === 'offer') {
           incomingCall.value = true
-          caller.value = message.userKey === 'user_one' ? 'User One' : 'User Two'
+          caller.value = config.userNames[message.userKey]
 
           await peerConnection.value.setRemoteDescription(new RTCSessionDescription(message.data))
         }
@@ -179,27 +174,23 @@ export default {
           await peerConnection.value.addIceCandidate(new RTCIceCandidate(message.data))
         }
       }
-
       ws.value.onerror = (error) => {
         console.error('WebSocket error:', error)
       }
-
       ws.value.onclose = () => {
         console.log('WebSocket connection closed')
       }
     })
-
     const setupPeerConnection = () => {
-      peerConnection.value = new RTCPeerConnection(servers)
-
+      peerConnection.value = new RTCPeerConnection({
+        iceServers: config.stunServers // Usa los servidores del archivo de configuración
+      })
       localStream.value.getTracks().forEach(track => peerConnection.value.addTrack(track, localStream.value))
-
       peerConnection.value.ontrack = (event) => {
         if (remoteVideo.value) {
           remoteVideo.value.srcObject = event.streams[0]
         }
       }
-
       peerConnection.value.onicecandidate = (event) => {
         if (event.candidate) {
           ws.value.send(JSON.stringify({
@@ -211,7 +202,6 @@ export default {
         }
       }
     }
-
     const startVideoCall = async () => {
       try {
         const offer = await peerConnection.value.createOffer()
@@ -226,10 +216,8 @@ export default {
         console.error('Error starting video call:', error)
       }
     }
-
     const acceptCall = async () => {
       incomingCall.value = false
-
       if (peerConnection.value.remoteDescription) {
         const answer = await peerConnection.value.createAnswer()
         await peerConnection.value.setLocalDescription(answer)
@@ -242,7 +230,6 @@ export default {
         }))
       }
     }
-
     const rejectCall = () => {
       incomingCall.value = false
       if (peerConnection.value) {
@@ -250,34 +237,28 @@ export default {
         peerConnection.value = null
       }
     }
-
     const sendMessage = () => {
       handleSendMessage(props.userKey, newMessage.value, props.addMessage, ws.value)
       newMessage.value = ''
     }
-
     const startEditing = (message) => {
       editingMessage.value = message.id
       editText.value = message.content
     }
-
     const saveEdit = (message) => {
       handleSaveEdit(editText.value, message, props.updateMessage, ws.value)
       editingMessage.value = null
       editText.value = ''
     }
-
     const confirmDelete = (message) => {
       dialog.value = true
       messageToDelete.value = message
     }
-
     const deleteMessage = () => {
       handleConfirmDelete(messageToDelete.value, props.deleteMessage, ws.value)
       dialog.value = false
       messageToDelete.value = null
     }
-
     return {
       newMessage,
       sendMessage,
