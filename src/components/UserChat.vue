@@ -139,21 +139,38 @@ export default {
     const incomingCall = ref(false)
     const caller = ref('')
 
+    const connectWebSocket = () => {
+      return new Promise((resolve, reject) => {
+        ws.value = new WebSocket(config.wsUrl)
+
+        ws.value.onopen = () => {
+          console.log('WebSocket connected')
+          ws.value.send(JSON.stringify({type: 'register', userKey: props.userKey}))
+          resolve()
+        }
+
+        ws.value.onerror = (error) => {
+          console.error('WebSocket error:', error)
+          reject(error)
+        }
+
+        ws.value.onclose = () => {
+          console.log('WebSocket connection closed')
+        }
+      })
+    }
+
     onMounted(async () => {
       console.log(`Initial messages for ${props.userKey}:`, props.messages)
 
       try {
+        await connectWebSocket()
+
         localStream.value = await navigator.mediaDevices.getUserMedia({video: true, audio: true})
         localVideo.value.srcObject = localStream.value
         setupPeerConnection()
       } catch (error) {
-        console.error('Error accessing media devices:', error)
-      }
-
-      ws.value = new WebSocket(config.ws)
-
-      ws.value.onopen = () => {
-        ws.value.send(JSON.stringify({type: 'register', userKey: props.userKey}))
+        console.error('Error initializing application:', error)
       }
 
       ws.value.onmessage = async (event) => {
@@ -174,23 +191,21 @@ export default {
           await peerConnection.value.addIceCandidate(new RTCIceCandidate(message.data))
         }
       }
-      ws.value.onerror = (error) => {
-        console.error('WebSocket error:', error)
-      }
-      ws.value.onclose = () => {
-        console.log('WebSocket connection closed')
-      }
     })
+
     const setupPeerConnection = () => {
       peerConnection.value = new RTCPeerConnection({
-        iceServers: config.stunServers // Usa los servidores del archivo de configuración
+        iceServers: config.stunServers // Use servers from config file
       })
+
       localStream.value.getTracks().forEach(track => peerConnection.value.addTrack(track, localStream.value))
+
       peerConnection.value.ontrack = (event) => {
         if (remoteVideo.value) {
           remoteVideo.value.srcObject = event.streams[0]
         }
       }
+
       peerConnection.value.onicecandidate = (event) => {
         if (event.candidate) {
           ws.value.send(JSON.stringify({
@@ -202,6 +217,7 @@ export default {
         }
       }
     }
+
     const startVideoCall = async () => {
       try {
         const offer = await peerConnection.value.createOffer()
@@ -230,6 +246,7 @@ export default {
         }))
       }
     }
+
     const rejectCall = () => {
       incomingCall.value = false
       if (peerConnection.value) {
@@ -237,28 +254,34 @@ export default {
         peerConnection.value = null
       }
     }
+
     const sendMessage = () => {
       handleSendMessage(props.userKey, newMessage.value, props.addMessage, ws.value)
       newMessage.value = ''
     }
+
     const startEditing = (message) => {
       editingMessage.value = message.id
       editText.value = message.content
     }
+
     const saveEdit = (message) => {
       handleSaveEdit(editText.value, message, props.updateMessage, ws.value)
       editingMessage.value = null
       editText.value = ''
     }
+
     const confirmDelete = (message) => {
       dialog.value = true
       messageToDelete.value = message
     }
+
     const deleteMessage = () => {
       handleConfirmDelete(messageToDelete.value, props.deleteMessage, ws.value)
       dialog.value = false
       messageToDelete.value = null
     }
+
     return {
       newMessage,
       sendMessage,
