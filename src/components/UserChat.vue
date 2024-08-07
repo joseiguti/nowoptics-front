@@ -2,8 +2,13 @@
   <v-card class="chat-container d-flex flex-column fill-height">
     <v-card-title class="d-flex align-center justify-space-between">
       <div class="title-container">
-        <v-btn icon class="ma-3" @click="startVideoCall">
-          <v-icon>mdi-video</v-icon>
+        <v-btn
+            :class="callInProgress ? 'call-active' : ''"
+            icon
+            class="ma-3"
+            @click="toggleCall"
+        >
+          <v-icon>{{ callInProgress ? 'mdi-phone-hangup' : 'mdi-video' }}</v-icon>
         </v-btn>
         <span>{{ title }}</span>
       </div>
@@ -76,7 +81,7 @@
     <v-dialog v-model="incomingCall" max-width="290">
       <v-card>
         <v-card-title class="headline">Incoming Call</v-card-title>
-        <v-card-text>{{ caller }} is calling. Do you want to accept the call?</v-card-text>
+        <v-card-text><b>{{ caller }}</b> is calling. Do you want to accept the call?</v-card-text>
         <v-card-actions>
           <v-spacer></v-spacer>
           <v-btn color="green darken-1" text @click="acceptCall">Accept</v-btn>
@@ -138,6 +143,7 @@ export default {
     const peerConnection = ref(null)
     const incomingCall = ref(false)
     const caller = ref('')
+    const callInProgress = ref(false)
 
     const connectWebSocket = () => {
       return new Promise((resolve, reject) => {
@@ -180,15 +186,24 @@ export default {
           incomingCall.value = true
           caller.value = config.userNames[message.userKey]
 
+          if (!peerConnection.value) {
+            setupPeerConnection()
+          }
+
           await peerConnection.value.setRemoteDescription(new RTCSessionDescription(message.data))
         }
 
         if (message.type === 'answer' && peerConnection.value) {
           await peerConnection.value.setRemoteDescription(new RTCSessionDescription(message.data))
+          callInProgress.value = true // Mark call as in progress once answer is received
         }
 
         if (message.type === 'candidate' && peerConnection.value) {
           await peerConnection.value.addIceCandidate(new RTCIceCandidate(message.data))
+        }
+
+        if (message.type === 'end_call') {
+          endCall()
         }
       }
     })
@@ -218,8 +233,20 @@ export default {
       }
     }
 
+    const toggleCall = () => {
+      if (callInProgress.value) {
+        endCall()
+      } else {
+        startVideoCall()
+      }
+    }
+
     const startVideoCall = async () => {
       try {
+        if (!peerConnection.value) {
+          setupPeerConnection()
+        }
+
         const offer = await peerConnection.value.createOffer()
         await peerConnection.value.setLocalDescription(offer)
         ws.value.send(JSON.stringify({
@@ -232,6 +259,7 @@ export default {
         console.error('Error starting video call:', error)
       }
     }
+
     const acceptCall = async () => {
       incomingCall.value = false
       if (peerConnection.value.remoteDescription) {
@@ -244,6 +272,7 @@ export default {
           target: props.userKey === 'user_one' ? 'user_two' : 'user_one',
           userKey: props.userKey
         }))
+        callInProgress.value = true
       }
     }
 
@@ -253,6 +282,21 @@ export default {
         peerConnection.value.close()
         peerConnection.value = null
       }
+      callInProgress.value = false
+    }
+
+    const endCall = () => {
+      if (peerConnection.value) {
+        peerConnection.value.close()
+        peerConnection.value = null
+      }
+      callInProgress.value = false
+
+      ws.value.send(JSON.stringify({
+        type: 'end_call',
+        target: props.userKey === 'user_one' ? 'user_two' : 'user_one',
+        userKey: props.userKey
+      }))
     }
 
     const sendMessage = () => {
@@ -299,7 +343,9 @@ export default {
       acceptCall,
       rejectCall,
       incomingCall,
-      caller
+      caller,
+      toggleCall,
+      callInProgress
     }
   }
 }

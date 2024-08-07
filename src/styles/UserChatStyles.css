@@ -1,3 +1,8 @@
+.title-container {
+    display: flex;
+    align-items: center;
+}
+
 .video-container {
     position: absolute;
     top: 0;
@@ -118,4 +123,9 @@
 .action-icon {
     font-size: 16px;
     padding: 0 4px;
+}
+
+.call-active {
+    background-color: red !important;
+    color: #e0e0e0 !important;
 }
